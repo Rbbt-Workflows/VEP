@@ -1,0 +1,13 @@
+VEP=/$PWD filter="*.rb *.R *.js *.sass *.haml *.tsv" {
+ workflow.rb
+ lib=lib {
+  VEP.rb
+ }
+ share=share{
+  install=install{
+   software=software filter="*"{
+    VEP
+   }
+  }
+ }
+}
