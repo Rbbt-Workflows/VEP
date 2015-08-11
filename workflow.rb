@@ -58,18 +58,4 @@ module VEP
     CMD.cmd('tr "|" "\t"', :in => io, :pipe => true)
   end
 
-  dep :prepare
-  input :database, :string, "Database to annotate with", "phastConsElements46way"
-  input :release, :string, "Hg release", "hg19"
-  task :annotate => :tsv do |database,release|
-    script = SOFTWARE_DIR["annotate_variation.pl"].find
-    db = SOFTWARE_DIR["humandb"].find
-
-    `#{script} -build hg19 -downdb #{database} #{db}` unless db.glob(release + '_' + database+".*").any?
-    log :annovar, "Running annovar script"
-    out = file(:out)
-    FileUtils.mkdir_p files_dir
-    `#{script}  -regionanno -build hg19 -out #{out} -dbtype #{database} #{step(:prepare).join.path.find} #{db}`
-    Open.read(file(:out). + '.hg19_phastConsElements46way')
-  end
 end
