@@ -21,7 +21,6 @@ module VEP
   end
 
   dep :prepare
-  extension :txt
   task :analysis => :tsv do 
     script = SOFTWARE_DIR["variant_effect_predictor.pl"].find
     data_dir = Rbbt.software.opt["ensembl-tools"]["Data.GRCh37"].find
@@ -46,7 +45,11 @@ module VEP
       if change_str.length == 1
         change = [change_str, change_str] * pos.to_s
       elsif change_str.length > 3
-        change = [change_str.split("/").first, "FrameShift"] * pos.to_s
+        if conseq =~ /frameshift/
+          change = [change_str.split("/").first, "FrameShift"] * pos.to_s
+        else
+          change = [change_str.split("/").first, "Indel"] * pos.to_s
+        end
       else
         change = change_str.split("/") * pos.to_s
       end
@@ -57,5 +60,4 @@ module VEP
     io = Misc.collapse_stream(dumper.stream)
     CMD.cmd('tr "|" "\t"', :in => io, :pipe => true)
   end
-
 end
