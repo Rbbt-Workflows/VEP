@@ -25,7 +25,10 @@ module VEP
     script = SOFTWARE_DIR["variant_effect_predictor.pl"].find
     data_dir = Rbbt.software.opt["ensembl-tools"]["Data.GRCh37"].find
     log :VEP, "Running VEP script"
-    CMD.cmd("perl #{script} -i '#{step(:prepare).join.path}' -o '#{path}' --dir '#{data_dir}' --cache --offline --stats_text")
+    io = CMD.cmd("perl #{script} -i '#{step(:prepare).join.path}' -o '#{path}' --dir '#{data_dir}' --cache --offline --stats_text --force_overwrite", :pipe => true)
+    while line = io.gets
+      Log.debug line
+    end
     nil
   end
 
@@ -60,4 +63,6 @@ module VEP
     io = Misc.collapse_stream(dumper.stream)
     CMD.cmd('tr "|" "\t"', :in => io, :pipe => true)
   end
+
+  export_asynchronous :mutated_isoforms
 end
