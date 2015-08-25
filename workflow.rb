@@ -22,19 +22,27 @@ module VEP
 
   dep :prepare
   task :analysis => :tsv do 
+    Step.wait_for_jobs dependencies
     script = SOFTWARE_DIR["variant_effect_predictor.pl"].find
     data_dir = Rbbt.software.opt["ensembl-tools"]["Data.GRCh37"].find
     log :VEP, "Running VEP script"
-    io = CMD.cmd("perl #{script} -i '#{step(:prepare).join.path}' -o '#{path}' --dir '#{data_dir}' --cache --offline --stats_text --force_overwrite", :pipe => true)
+    io = CMD.cmd("perl #{script} -i '#{step(:prepare).path}' -o '#{path}' --dir '#{data_dir}' --cache --offline --stats_text --force_overwrite", :pipe => true)
+    bar = self.progress_bar "VEP", :max => TSV.guess_max(step(:prepare))
+    bar.init
     while line = io.gets
-      Log.debug line
+      if line =~ /Processed (\d+) total variants/
+        count = $1.to_i
+        bar.tick(count)
+      end
+      self.message line
     end
+    Log::ProgressBar.remove_bar bar
     nil
   end
 
   dep :analysis
-  task :mutated_isoforms => :tsv do 
-    organism = Organism.default_code("Hsa")
+  input :organism, :string, "Organism code", Organism.default_code("Hsa")
+  task :mutated_isoforms => :tsv do |organism|
     dumper = TSV::Dumper.new :key_field => "Genomic Mutation", :fields => ["Mutated Isoform"], :type => :flat, :organism => organism
     dumper.init
     enst2enp = Organism.transcripts(organism).index :target => "Ensembl Protein ID", :fields => ["Ensembl Transcript ID"], :persist => true
