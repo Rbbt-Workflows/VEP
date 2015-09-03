@@ -27,23 +27,26 @@ module VEP
     data_dir = Rbbt.software.opt["ensembl-tools"]["Data.GRCh37"].find
     log :VEP, "Running VEP script"
     io = CMD.cmd("perl #{script} -i '#{step(:prepare).path}' -o '#{path}' --dir '#{data_dir}' --cache --offline --stats_text --force_overwrite", :pipe => true)
+    start = Time.now
     bar = self.progress_bar "VEP", :max => TSV.guess_max(step(:prepare))
     bar.init
     while line = io.gets
       if line =~ /Processed (\d+) total variants/
         count = $1.to_i
-        bar.tick(count)
+        bar.tick(count - bar.ticks)
       end
-      self.message line
+      #self.log :VEP_CMD, line
+      Log.debug line
     end
     Log::ProgressBar.remove_bar bar
+    set_info :process_time, Time.now - start
     nil
   end
 
   dep :analysis
   input :organism, :string, "Organism code", Organism.default_code("Hsa")
   task :mutated_isoforms => :tsv do |organism|
-    dumper = TSV::Dumper.new :key_field => "Genomic Mutation", :fields => ["Mutated Isoform"], :type => :flat, :organism => organism
+    dumper = TSV::Dumper.new :key_field => "Genomic Mutation", :fields => ["Mutated Isoform"], :type => :flat, :namespace => organism
     dumper.init
     enst2enp = Organism.transcripts(organism).index :target => "Ensembl Protein ID", :fields => ["Ensembl Transcript ID"], :persist => true
     dumper = TSV.traverse step(:analysis), :type => :array, :into => dumper do |line|
