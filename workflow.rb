@@ -21,7 +21,7 @@ module VEP
   end
 
   dep :prepare
-  task :analysis => :tsv do 
+  task :analysis => :text do 
     Step.wait_for_jobs dependencies
     script = SOFTWARE_DIR["variant_effect_predictor.pl"].find
     data_dir = Rbbt.software.opt["ensembl-tools"]["Data.GRCh37"].find
@@ -75,5 +75,5 @@ module VEP
     CMD.cmd('tr "|" "\t"', :in => io, :pipe => true)
   end
 
-  export_asynchronous :mutated_isoforms
+  export_asynchronous :analysis, :mutated_isoforms
 end
