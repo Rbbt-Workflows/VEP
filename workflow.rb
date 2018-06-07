@@ -8,39 +8,26 @@ Workflow.require_workflow "Sequence"
 
 module VEP
   extend Workflow
-  SOFTWARE_DIR=Rbbt.software.opt["ensembl-tools"].produce["scripts/variant_effect_predictor"].find
+  SOFTWARE_DIR=Rbbt.software.opt["ensembl-vep"].find
 
   dep Sequence, :reference
   task :prepare => :array do |mutations|
-    TSV.traverse step(:reference).grace, :type => :array, :into => :stream do |line|
+    TSV.traverse step(:reference), :type => :array, :into => :stream do |line|
       next if line =~ /^#/
-        mutation, ref = line.split "\t"
+
+      mutation, ref = line.split "\t"
+      next if ref.nil?
       chr, pos, mut = mutation.split(":")
       [chr, pos, pos, ref+"/"+mut, '+']  * "\t"
     end
   end
 
   dep :prepare
-  task :analysis => :text do 
-    Step.wait_for_jobs dependencies
-    script = SOFTWARE_DIR["variant_effect_predictor.pl"].find
-    data_dir = Rbbt.software.opt["ensembl-tools"]["Data.GRCh37"].find
-    log :VEP, "Running VEP script"
-    io = CMD.cmd("perl #{script} -i '#{step(:prepare).path}' -o '#{path}' --dir '#{data_dir}' --cache --offline --stats_text --force_overwrite", :pipe => true)
-    start = Time.now
-    bar = self.progress_bar "VEP", :max => TSV.guess_max(step(:prepare))
-    bar.init
-    while line = io.gets
-      if line =~ /Processed (\d+) total variants/
-        count = $1.to_i
-        bar.tick(count - bar.ticks)
-      end
-      #self.log :VEP_CMD, line
-      Log.debug line
-    end
-    Log::ProgressBar.remove_bar bar
-    set_info :process_time, Time.now - start
-    nil
+  extension :vcf
+  input :args_VEP, :string, "Extra arguments for VEP"
+  task :analysis => :text do |args_VEP|
+    script = SOFTWARE_DIR["vep"].find
+    CMD.cmd("perl #{script} --format ensembl -o STDOUT --assembly GRCh37 --cache --offline --stats_text --force_overwrite --vcf --fork 20 #{args_VEP || ""}", :pipe => true, :in => TSV.get_stream(step(:prepare)))
   end
 
   dep :analysis
@@ -49,27 +36,28 @@ module VEP
     dumper = TSV::Dumper.new :key_field => "Genomic Mutation", :fields => ["Mutated Isoform"], :type => :flat, :namespace => organism
     dumper.init
     enst2enp = Organism.transcripts(organism).index :target => "Ensembl Protein ID", :fields => ["Ensembl Transcript ID"], :persist => true
-    dumper = TSV.traverse step(:analysis), :type => :array, :into => dumper do |line|
+    dumper = TSV.traverse step(:analysis), :type => :array, :into => dumper, :bar => "Processing VEP VCF" do |line|
       next if line =~ /^#/
-      mut_str, ehr_pos, ref, ensg, enst, type, conseq, cdna_pos, cds_pos, pos, change_str, *rest = line.split "\t", -1
-      next if change_str.nil? or change_str.empty? or change_str == '-'
-      mutation = mut_str.gsub("_",':').gsub(/:[^:]*?\//, ':')
-      protein = enst2enp[enst]
+      chr, pos, id, ref, alt, qual, filter, info = line.split("\t")
+      next if info.nil?
 
-      if change_str.length == 1
-        change = [change_str, change_str] * pos.to_s
-      elsif change_str.length > 3
-        if conseq =~ /frameshift/
-          change = [change_str.split("/").first, "FrameShift"] * pos.to_s
-        else
-          change = [change_str.split("/").first, "Indel"] * pos.to_s
-        end
-      else
-        change = change_str.split("/") * pos.to_s
+      mutation = [chr, pos, alt] * ":"
+
+      mis = info.split(',').collect do |str|
+        next if str == '.'
+        vals = str.split("|")
+        enst = vals[6]
+        next unless enst =~ /ENST/
+        aa_pos = vals[14]
+        next unless aa_pos =~ /\d/
+        wt, alt = vals[15].split("/")
+        alt = wt if alt.nil?
+        
+        ensp = enst2enp[enst]
+        [ensp, [wt,aa_pos,alt]*""] * ":"
       end
 
-      mi = protein + ':' + change
-      [mutation, mi]
+      [mutation, mis]
     end
     io = Misc.collapse_stream(dumper.stream)
     CMD.cmd('tr "|" "\t"', :in => io, :pipe => true)
