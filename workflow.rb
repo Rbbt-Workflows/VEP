@@ -10,24 +10,33 @@ module VEP
   extend Workflow
   SOFTWARE_DIR=Rbbt.software.opt["ensembl-vep"].find
 
-  dep Sequence, :reference
-  task :prepare => :array do |mutations|
-    TSV.traverse step(:reference), :type => :array, :into => :stream do |line|
-      next if line =~ /^#/
+  #dep Sequence, :mutations_to_vcf
+  #task :prepare => :array do |mutations|
+  #  TSV.traverse step(:reference), :type => :array, :into => :stream do |line|
+  #    next if line =~ /^#/
 
-      mutation, ref = line.split "\t"
-      next if ref.nil?
-      chr, pos, mut = mutation.split(":")
-      [chr, pos, pos, ref+"/"+mut, '+']  * "\t"
-    end
-  end
+  #    mutation, ref = line.split "\t"
+  #    next if ref.nil?
+  #    chr, pos, mut = mutation.split(":")
 
-  dep :prepare
+  #    if %w(A C T G).include? mut
+  #      start, eend = pos, pos
+  #    elsif mut[0] == "-"
+
+  #    end
+
+
+
+  #    [chr, start, eend, ref+"/"+mut, '+']  * "\t"
+  #  end
+  #end
+
+  dep Sequence, :mutations_to_vcf, :full_reference_sequence => true
   extension :vcf
   input :args_VEP, :string, "Extra arguments for VEP"
   task :analysis => :text do |args_VEP|
     script = SOFTWARE_DIR["vep"].find
-    CMD.cmd("perl #{script} --format ensembl -o STDOUT --assembly GRCh37 --cache --offline --stats_text --force_overwrite --vcf --fork 20 #{args_VEP || ""}", :pipe => true, :in => TSV.get_stream(step(:prepare)))
+    CMD.cmd("perl #{script} --format vcf -o STDOUT --assembly GRCh37 --cache --offline --stats_text --force_overwrite --vcf --fork 20 #{args_VEP || ""}", :pipe => true, :in => TSV.get_stream(step(:mutations_to_vcf)))
   end
 
   dep :analysis
