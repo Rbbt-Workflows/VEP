@@ -36,7 +36,11 @@ module VEP
   input :args_VEP, :string, "Extra arguments for VEP"
   task :analysis => :text do |args_VEP|
     script = SOFTWARE_DIR["vep"].find
-    CMD.cmd("perl #{script} --format vcf -o STDOUT --assembly GRCh37 --cache --offline --stats_text --force_overwrite --vcf --fork 20 #{args_VEP || ""}", :pipe => true, :in => TSV.get_stream(step(:mutations_to_vcf)))
+    TmpFile.with_file do |tmpdir|
+      Open.mkdir tmpdir
+      CMD.cmd_log("perl #{script} --format vcf -o '#{tmpdir}/output' --quiet --assembly GRCh37 --cache --offline --stats_text --force_overwrite --vcf --fork 20 #{args_VEP || ""}", :in => TSV.get_stream(step(:mutations_to_vcf)))
+      Open.read("#{tmpdir}/output")
+    end
   end
 
   dep :analysis
