@@ -1,12 +1,8 @@
 #!/bin/bash
 
 name='ensembl-tools'
-url="https://github.com/Ensembl/ensembl-tools/archive/release/81.zip"
+url="https://github.com/Ensembl/ensembl-tools/archive/release/96.zip"
 
 get_src "$name" "$url"
 uncompress_pkg "$name"
-mv $RBBT_SOFTWARE_DIR/.build/ensembl-tools-release-81/ $RBBT_SOFTWARE_DIR/opt/$name
-cd  $RBBT_SOFTWARE_DIR/opt/$name/scripts/variant_effect_predictor && 
-  perl INSTALL.pl -a ac -s homo_sapiens -y GRCh37 -c $RBBT_SOFTWARE_DIR/opt/$name/Data.GRCh37
-
-
+mv $RBBT_SOFTWARE_DIR/.build/ensembl-tools-release-*/ $RBBT_SOFTWARE_DIR/opt/$name
