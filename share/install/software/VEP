@@ -1,7 +1,7 @@
 #!/bin/bash
 
 name='ensembl-vep'
-url="https://github.com/Ensembl/ensembl-vep.git release/95.0"
+url="https://github.com/Ensembl/ensembl-vep.git release/96.0"
 
 NOWEB=true install_git "$name" "$url"
 (cd $OPT_DIR/$name/; mv t no-t; perl INSTALL.pl -a acf  -s homo_sapiens --NO_HTSLIB --CACHEDIR $HOME/.rbbt/software/opt/$name/data/ -n --ASSEMBLY GRCh37 )

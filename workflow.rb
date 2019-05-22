@@ -39,7 +39,7 @@ module VEP
     script = SOFTWARE_DIR["vep"].find
     TmpFile.with_file do |tmpdir|
       Open.mkdir tmpdir
-      CMD.cmd_log("perl #{script} --dir '#{CACHE_DIR}' --format vcf -o '#{tmpdir}/output' --quiet --assembly GRCh37 --cache --offline --stats_text --force_overwrite --vcf --fork 20 #{args_VEP || ""}", :in => TSV.get_stream(step(:mutations_to_vcf)))
+      CMD.cmd_log("perl #{script} --dir_plugins '/home/mvazque2/.vep/Plugins' --dir '#{CACHE_DIR}' --format vcf -o '#{tmpdir}/output' --quiet --assembly GRCh37 --cache --offline --stats_text --force_overwrite --vcf --fork 20 #{args_VEP || ""}", :in => TSV.get_stream(step(:mutations_to_vcf)))
       Open.read("#{tmpdir}/output")
     end
   end
