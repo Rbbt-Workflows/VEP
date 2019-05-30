@@ -37,9 +37,20 @@ module VEP
   input :args_VEP, :string, "Extra arguments for VEP"
   task :analysis => :text do |args_VEP|
     script = SOFTWARE_DIR["vep"].find
+    organism = self.recursive_inputs[:organism]
+
+    grch = case Organism.hg_build organism
+           when "hg19"
+             "GRCh37"
+           when "hg38"
+             "GRCh38"
+           else
+             raise "Unknown build for #{organism} only GRCH37 GRCH38 allowed"
+           end
+
     TmpFile.with_file do |tmpdir|
       Open.mkdir tmpdir
-      CMD.cmd_log("perl #{script} --dir_plugins '/home/mvazque2/.vep/Plugins' --dir '#{CACHE_DIR}' --format vcf -o '#{tmpdir}/output' --quiet --assembly GRCh37 --cache --offline --stats_text --force_overwrite --vcf --fork 20 #{args_VEP || ""}", :in => TSV.get_stream(step(:mutations_to_vcf)))
+      CMD.cmd_log("perl #{script} --dir_plugins '/home/mvazque2/.vep/Plugins' --dir '#{CACHE_DIR}' --format vcf -o '#{tmpdir}/output' --quiet --assembly #{grch} --cache --offline --stats_text --force_overwrite --vcf --fork 20 #{args_VEP || ""}", :in => TSV.get_stream(step(:mutations_to_vcf)))
       Open.read("#{tmpdir}/output")
     end
   end
