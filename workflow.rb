@@ -10,6 +10,7 @@ module VEP
   extend Workflow
   SOFTWARE_DIR=Rbbt.software.opt["ensembl-vep"].find
   CACHE_DIR=SOFTWARE_DIR.data
+  PLUGINS_DIR=SOFTWARE_DIR.Plugins
 
   #dep Sequence, :mutations_to_vcf
   #task :prepare => :array do |mutations|
@@ -41,7 +42,7 @@ module VEP
     if options[:vcf_file]
       nil
     else
-      {:input => options, :jobname => jobname}
+      {:inputs => options, :jobname => jobname}
     end
   end
   task :analysis => :text do |args_VEP,vcf_file,organism,reference|
@@ -59,10 +60,11 @@ module VEP
              raise "Unknown build for #{organism} only GRCH37 GRCH38 allowed"
            end
 
+    cpus = config :cpus, :VEP, :vep, :default => 1
     TmpFile.with_file do |tmpdir|
       Open.mkdir tmpdir
-      vcf = TSV.get_stream(vcf_file || step(:mutations_to_vcf))
-      CMD.cmd_log("perl #{script} --dir_plugins '/home/mvazque2/.vep/Plugins' --dir '#{CACHE_DIR}' --format vcf -o '#{tmpdir}/output' --quiet --assembly #{grch} --cache --offline --stats_text --force_overwrite --vcf --fork 20 #{args_VEP || ""}", :in => vcf)
+      vcf = TSV.get_stream(vcf_file || step(:mutations_to_vcf))
+      CMD.cmd_log("perl #{script} --dir_plugins '#{PLUGINS_DIR}' --dir '#{CACHE_DIR}' --format vcf -o '#{tmpdir}/output'  --assembly #{grch} --cache --offline --stats_text --force_overwrite --vcf --fork #{cpus} #{args_VEP || ""}", :in => vcf)
       Open.read("#{tmpdir}/output")
     end
   end
@@ -78,6 +80,8 @@ module VEP
       chr, pos, id, ref, alt, qual, filter, info = line.split("\t")
       next if info.nil?
 
+      pos, muts = Misc.correct_vcf_mutation pos.to_i, ref, alt
+      alt = muts.first
       mutation = [chr, pos, alt] * ":"
 
       mis = info.split(',').collect do |str|
