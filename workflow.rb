@@ -8,7 +8,7 @@ Workflow.require_workflow "Sequence"
 
 module VEP
   extend Workflow
-  SOFTWARE_DIR=Rbbt.software.opt["ensembl-vep"].find
+  SOFTWARE_DIR=Rbbt.software.opt["ensembl-vep"].produce.find
   CACHE_DIR=SOFTWARE_DIR.data
   PLUGINS_DIR=SOFTWARE_DIR.Plugins
 
